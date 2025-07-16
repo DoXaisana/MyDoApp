@@ -27,7 +27,7 @@ export const getTodos = async ({ params }: any) => {
 };
 
 export const createTodo = async ({ body }: any) => {
-  const { title, description, completed, userId, date, time } = body;
+  const { title, description, completed, userId, date, time, remind } = body;
   return await prisma.todo.create({
     data: {
       title,
@@ -36,6 +36,7 @@ export const createTodo = async ({ body }: any) => {
       userId,
       date,
       time,
+      ...(remind !== undefined && { remind }),
     },
   });
 };
@@ -49,15 +50,19 @@ export const getTodoById = async ({ params }: any) => {
 // Update a todo by id
 export const updateTodo = async ({ params, body }: any) => {
   const id = params.id;
-  const { title, description, completed } = body;
-  return await prisma.todo.update({
+  const { title, description, completed, date, time, remind } = body;
+  const updated = await prisma.todo.update({
     where: { id },
     data: {
       ...(title !== undefined && { title }),
       ...(description !== undefined && { description }),
       ...(completed !== undefined && { completed }),
+      ...(date !== undefined && { date }),
+      ...(time !== undefined && { time }),
+      remind, // always include remind, even if null
     },
   });
+  return updated;
 };
 
 // Delete a todo by id

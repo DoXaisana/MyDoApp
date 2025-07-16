@@ -19,3 +19,11 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.bouncycastle" && requested.name == "bcprov-jdk18on") {
+            useVersion("1.72") // or 1.72, but not 1.78.x
+        }
+    }
+}

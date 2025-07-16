@@ -9,7 +9,7 @@ import '../pages/login_page.dart';
 import '../pages/home_page.dart';
 
 class ApiService {
-  static String baseUrl = AppConfig.apiBaseUrl;
+  static String baseUrl = AppConfig.baseUrl;
   static final FlutterSecureStorage _storage = FlutterSecureStorage();
 
   static void setBaseUrl(String url) {
@@ -88,5 +88,25 @@ class ApiService {
       ...?headers,
     };
     return http.delete(Uri.parse('$baseUrl$endpoint'), headers: allHeaders);
+  }
+
+  static Future<http.Response> postMultipart(
+    String endpoint, {
+    required String filePath,
+    required String fieldName,
+    Map<String, String>? fields,
+  }) async {
+    final token = await getToken();
+    var uri = Uri.parse('$baseUrl$endpoint');
+    var request = http.MultipartRequest('POST', uri);
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
+    var streamedResponse = await request.send();
+    return await http.Response.fromStream(streamedResponse);
   }
 }

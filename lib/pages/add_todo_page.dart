@@ -3,6 +3,12 @@ import 'package:intl/intl.dart';
 import '../services/todo_service.dart';
 import '../services/auth_service.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    show DateInterpretation, AndroidScheduleMode;
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import '../services/notification_service.dart';
 
 class AddTodoPage extends StatefulWidget {
   @override
@@ -18,8 +24,112 @@ class _AddTodoPageState extends State<AddTodoPage> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
+  bool _reminderEnabled = false;
+  String _reminderChoice = 'None';
+  int? _customMinutes;
+  final List<String> _reminderOptions = [
+    'None',
+    '5 min before',
+    '10 min before',
+    '15 min before',
+    '30 min before',
+    '1 hour before',
+    '1 day before',
+    'Custom...',
+  ];
+  FlutterLocalNotificationsPlugin? _notificationsPlugin;
+
   final Color lightBlue = Color(0xFFD9ECFA);
   final Color mediumBlue = Color(0xFF5A7292);
+
+  @override
+  void initState() {
+    super.initState();
+    _initNotifications();
+    tz.initializeTimeZones();
+  }
+
+  Future<void> _initNotifications() async {
+    _notificationsPlugin = NotificationService.plugin;
+    const AndroidInitializationSettings androidInit =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings iosInit = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+    );
+    await _notificationsPlugin!.initialize(initSettings);
+    // Request permissions for Android 13+ and iOS
+  }
+
+  Future<void> _scheduleReminder(String title, DateTime dueDateTime) async {
+    if (!_reminderEnabled || _reminderChoice == 'None') return;
+    int minutesBefore = 0;
+    switch (_reminderChoice) {
+      case '5 min before':
+        minutesBefore = 5;
+        break;
+      case '10 min before':
+        minutesBefore = 10;
+        break;
+      case '15 min before':
+        minutesBefore = 15;
+        break;
+      case '30 min before':
+        minutesBefore = 30;
+        break;
+      case '1 hour before':
+        minutesBefore = 60;
+        break;
+      case '1 day before':
+        minutesBefore = 1440;
+        break;
+      case 'Custom...':
+        minutesBefore = _customMinutes ?? 0;
+        break;
+      default:
+        return;
+    }
+    final scheduledTime = dueDateTime.subtract(
+      Duration(minutes: minutesBefore),
+    );
+    print(
+      'Scheduling notification for: $scheduledTime, now: ${DateTime.now()}',
+    );
+    if (scheduledTime.isBefore(DateTime.now())) {
+      print('Scheduled time is in the past, notification not scheduled.');
+      return;
+    }
+    final tz.TZDateTime tzScheduled = tz.TZDateTime.from(
+      scheduledTime,
+      tz.local,
+    );
+    await _notificationsPlugin?.zonedSchedule(
+      tzScheduled.millisecondsSinceEpoch ~/ 1000,
+      'Todo Reminder',
+      '"$title" is due soon!',
+      tzScheduled,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'todo_reminder',
+          'Todo Reminders',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      matchDateTimeComponents: DateTimeComponents.dateAndTime,
+      androidScheduleMode: AndroidScheduleMode.inexact,
+    );
+  }
 
   @override
   void dispose() {
@@ -80,7 +190,13 @@ class _AddTodoPageState extends State<AddTodoPage> {
       final decoded = JwtDecoder.decode(token);
       final userId = decoded['id'];
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate!);
-      final timeStr = _selectedTime!.format(context);
+      final timeStr =
+          _selectedTime!.hour.toString().padLeft(2, '0') +
+          ':' +
+          _selectedTime!.minute.toString().padLeft(2, '0');
+      print(
+        'DEBUG: _reminderEnabled=$_reminderEnabled, _reminderChoice=$_reminderChoice, _customMinutes=$_customMinutes',
+      );
       final todo = {
         'title': _titleController.text.trim(),
         'description': _descController.text.trim(),
@@ -88,8 +204,17 @@ class _AddTodoPageState extends State<AddTodoPage> {
         'time': timeStr,
         'completed': false,
         'userId': userId,
+        'remind': (_reminderEnabled && _reminderChoice != 'None')
+            ? (_reminderChoice == 'Custom...'
+                  ? (_customMinutes?.toString() ?? '')
+                  : _reminderChoice)
+            : null,
       };
+      print('Add Todo payload: $todo');
       await TodoService.addTodo(todo);
+      // Schedule notification
+      final dueDateTime = DateTime.parse(dateStr + ' ' + timeStr);
+      await _scheduleReminder(_titleController.text.trim(), dueDateTime);
       setState(() {
         _isSaving = false;
       });
@@ -217,6 +342,94 @@ class _AddTodoPageState extends State<AddTodoPage> {
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Switch(
+                        value: _reminderEnabled,
+                        onChanged: (val) {
+                          setState(() {
+                            _reminderEnabled = val;
+                            if (!val) _reminderChoice = 'None';
+                            print(
+                              'DEBUG: Switch changed, _reminderEnabled=$_reminderEnabled, _reminderChoice=$_reminderChoice',
+                            );
+                          });
+                        },
+                      ),
+                      SizedBox(width: 8),
+                      Text('Remind me'),
+                      if (_reminderEnabled) ...[
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: DropdownButton<String>(
+                            value: _reminderChoice,
+                            items: _reminderOptions
+                                .map(
+                                  (opt) => DropdownMenuItem(
+                                    value: opt,
+                                    child: Text(opt),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) async {
+                              if (val == null) return;
+                              if (val == 'Custom...') {
+                                final minutes = await showDialog<int>(
+                                  context: context,
+                                  builder: (context) {
+                                    int custom = 1;
+                                    return AlertDialog(
+                                      title: Text('Custom Reminder'),
+                                      content: Row(
+                                        children: [
+                                          Expanded(
+                                            child: TextField(
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              decoration: InputDecoration(
+                                                labelText: 'Minutes before',
+                                              ),
+                                              onChanged: (v) {
+                                                custom = int.tryParse(v) ?? 1;
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(custom),
+                                          child: Text('OK'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                                if (minutes != null && minutes > 0) {
+                                  setState(() {
+                                    _reminderChoice = 'Custom...';
+                                    _customMinutes = minutes;
+                                    print(
+                                      'DEBUG: Dropdown changed, _reminderChoice=$_reminderChoice, _customMinutes=$_customMinutes',
+                                    );
+                                  });
+                                }
+                              } else {
+                                setState(() {
+                                  _reminderChoice = val;
+                                  print(
+                                    'DEBUG: Dropdown changed, _reminderChoice=$_reminderChoice',
+                                  );
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   SizedBox(height: 24),

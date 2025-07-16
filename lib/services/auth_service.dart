@@ -5,7 +5,7 @@ import 'config.dart';
 import 'package:flutter/foundation.dart';
 
 class AuthService {
-  static String baseUrl = AppConfig.apiBaseUrl;
+  static String baseUrl = AppConfig.baseUrl;
   static final FlutterSecureStorage _storage = FlutterSecureStorage();
 
   static void setBaseUrl(String url) {

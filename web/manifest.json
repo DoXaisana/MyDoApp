@@ -1,6 +1,6 @@
 {
-    "name": "todo_list_app",
-    "short_name": "todo_list_app",
+    "name": "MyDoApp",
+    "short_name": "MyDoApp",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

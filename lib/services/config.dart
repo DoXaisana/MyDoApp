@@ -1,12 +1,18 @@
+import 'dart:io';
+
 class AppConfig {
   // API Configuration
   static const String _iosSimulatorUrl = 'http://localhost:3000';
   static const String _androidEmulatorUrl = 'http://10.0.2.2:3000';
+  // static const String _androidEmulatorUrl = 'http://192.168.8.125:3000';
   static const String _localDeviceUrl = 'http://192.168.1.100:3000';
   static const String _productionUrl = 'https://your-production-url.com';
 
   // Set this to _androidEmulatorUrl for Android emulator, _iosSimulatorUrl for iOS simulator, or _localDeviceUrl for real device
-  static const String apiBaseUrl = _androidEmulatorUrl;
+  static final String baseUrl = Platform.isAndroid
+      // ? 'http://192.168.8.125:3000' // for real device
+      ? 'http://10.0.2.2:3000' // for emulator
+      : 'http://localhost:3000'; // for iOS simulator
 
   // Platform Detection
   static bool get isAndroidEmulator =>

@@ -10,6 +10,7 @@ import 'pages/profile_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/edit_profile_page.dart';
 import 'pages/pomodoro_page.dart';
+import 'package:android_intent_plus/android_intent.dart';
 
 void main() => runApp(MyApp());
 
@@ -17,7 +18,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Todo App',
+      title: 'MyDoApp',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.teal),
       initialRoute: '/splash',
       debugShowCheckedModeBanner: true,
@@ -36,4 +37,11 @@ class MyApp extends StatelessWidget {
       },
     );
   }
+}
+
+Future<void> openExactAlarmSettings() async {
+  final intent = AndroidIntent(
+    action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
+  );
+  await intent.launch();
 }

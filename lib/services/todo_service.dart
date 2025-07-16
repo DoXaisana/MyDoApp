@@ -9,7 +9,7 @@ class TodoService {
       final List data = jsonDecode(res.body);
       return data.cast<Map<String, dynamic>>();
     } else {
-      throw Exception('Failed to load todos');
+      throw Exception('Failed to load todos: ${res.statusCode} ${res.body}');
     }
   }
 
