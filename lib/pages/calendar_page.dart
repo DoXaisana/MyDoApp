@@ -23,14 +23,14 @@ class _CalendarPageState extends State<CalendarPage> {
   final Color cardText = Colors.black87;
   final Color appBarText = Colors.black87;
 
-  List<Map<String, dynamic>> get _todosForSelectedDay {
-    final selected = _selectedDay ?? _focusedDay;
-    return widget.todos.where((todo) {
-      if (todo['date'] == null) return false;
-      return todo['date'] ==
-          "${selected.year.toString().padLeft(4, '0')}-${selected.month.toString().padLeft(2, '0')}-${selected.day.toString().padLeft(2, '0')}";
-    }).toList();
+  List<Map<String, dynamic>> _todosForDay(DateTime day) {
+    final dateStr =
+        "${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
+    return widget.todos.where((todo) => todo['date'] == dateStr).toList();
   }
+
+  List<Map<String, dynamic>> get _todosForSelectedDay =>
+      _todosForDay(_selectedDay ?? _focusedDay);
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +58,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 _focusedDay = focusedDay;
               });
             },
+            eventLoader: _todosForDay,
             calendarStyle: CalendarStyle(
               todayDecoration: BoxDecoration(
                 color: lightBlue.withOpacity(0.7),
@@ -83,6 +84,10 @@ class _CalendarPageState extends State<CalendarPage> {
               todayTextStyle: TextStyle(
                 color: mediumBlue,
                 fontWeight: FontWeight.bold,
+              ),
+              markerDecoration: BoxDecoration(
+                color: Colors.teal,
+                shape: BoxShape.circle,
               ),
             ),
             headerStyle: HeaderStyle(

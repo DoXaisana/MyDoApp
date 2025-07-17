@@ -34,17 +34,17 @@ class _LoginPageState extends State<LoginPage> {
     });
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    final success = await AuthService.login(email, password);
+    final result = await AuthService.login(email, password);
     setState(() {
       _isLoading = false;
     });
-    if (success) {
+    if (result['success'] == true) {
       Navigator.of(
         context,
       ).pushReplacement(MaterialPageRoute(builder: (context) => HomePage()));
     } else {
       setState(() {
-        _errorMessage = 'Invalid email or password';
+        _errorMessage = result['message'] ?? 'Invalid email or password';
       });
     }
   }
@@ -101,6 +101,20 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (_errorMessage != null) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
                       TextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(

@@ -12,7 +12,10 @@ class AuthService {
     baseUrl = url;
   }
 
-  static Future<bool> login(String email, String password) async {
+  static Future<Map<String, dynamic>> login(
+    String email,
+    String password,
+  ) async {
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/auth/login'),
@@ -26,22 +29,39 @@ class AuthService {
         final token = data['token'];
         if (token != null) {
           await _storage.write(key: 'jwt_token', value: token);
-          return true;
+          return {'success': true};
+        }
+        return {'success': false, 'message': 'Invalid response from server'};
+      } else {
+        // Try to parse error message from backend
+        try {
+          final data = jsonDecode(res.body);
+          final message = data['error'] ?? data['message'] ?? 'Login failed';
+          return {'success': false, 'message': message};
+        } catch (_) {
+          return {'success': false, 'message': 'Login failed'};
         }
       }
-      return false;
     } catch (e) {
       debugPrint('Login exception: $e');
-      rethrow;
+      return {'success': false, 'message': 'Network error. Please try again.'};
     }
   }
 
-  static Future<bool> register(String email, String password) async {
+  static Future<bool> register(
+    String username,
+    String email,
+    String password,
+  ) async {
     try {
       final res = await http.post(
         Uri.parse('$baseUrl/auth/register'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
+        body: jsonEncode({
+          'username': username,
+          'email': email,
+          'password': password,
+        }),
       );
       debugPrint('Register response status: ${res.statusCode}');
       debugPrint('Register response body: ${res.body}');
